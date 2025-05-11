@@ -8,6 +8,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import Message, KeyboardButton, ReplyKeyboardMarkup
 from dotenv import load_dotenv
 from aiogram.fsm.state import State, StatesGroup
+from aiogram.types import BotCommand, BotCommandScopeChat
 '''
 # Подключение к базе данных
 conn = psycopg2.connect(
@@ -282,8 +283,37 @@ async def convert_to_rubles(message: Message, state: FSMContext):
     finally:
         await state.clear()
 
+async def set_bot_commands():
+    admin_commands = [
+        BotCommand(command="/start", description="Начать работу с ботом"),
+        BotCommand(command="/manage_currency", description="Управление валютами"),
+        BotCommand(command="/get_currencies", description="Список всех валют"),
+        BotCommand(command="/convert", description="Конвертация валюты в рубли"),
+    ]
+
+    user_commands = [
+        BotCommand(command="/start", description="Начать работу с ботом"),
+        BotCommand(command="/get_currencies", description="Список всех валют"),
+        BotCommand(command="/convert", description="Конвертация валюты в рубли"),
+    ]
+
+    # Команды по умолчанию для всех пользователей
+    await bot.set_my_commands(user_commands)
+
+    # Команды только для администраторов
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT chat_id FROM admins")
+    admins = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    for (chat_id,) in admins:
+        await bot.set_my_commands(admin_commands, scope=BotCommandScopeChat(chat_id=int(chat_id)))
+
 # Запуск бота
 async def main():
+    await set_bot_commands()
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
